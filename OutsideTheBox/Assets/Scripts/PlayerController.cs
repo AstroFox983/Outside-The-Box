@@ -1,41 +1,22 @@
-using Cinemachine;
 using UnityEngine;
 
-[RequireComponent(typeof(Rigidbody))]
 public class PlayerController : MonoBehaviour
 {
-    [Header("Movement Settings")]
-    public float moveSpeed = 5f;
-    public float jumpForce = 5f;
-    public float mouseSensitivity = 2f;
-
-    [Header("References")]
-    [SerializeField] private Transform cameraPivot;
-    [SerializeField] private CinemachineVirtualCamera vCam;
-
+    [SerializeField] float rollForce = 10f;
+    [SerializeField] Transform cameraTransform;
     private Rigidbody rb;
-    private float xRotation = 0f;
 
     private void Start()
     {
-        rb = GetComponent<Rigidbody>();
-
-        rb.freezeRotation = true;
-
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+        rb = GetComponent<Rigidbody>();
+        rb.maxAngularVelocity = 20f;
     }
 
     private void Update()
     {
-        HandleRotation();
-
-        if (Input.GetButtonDown("Jump") && IsGrounded())
-        {
-            Jump();
-        }
-
-        if (Input.GetKeyDown(KeyCode.Escape))
+        if(Input.GetKeyDown(KeyCode.Escape))
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -44,40 +25,25 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        Move();
-    }
+        float moveHorizontal = Input.GetAxis("Horizontal");
+        float moveVertical = Input.GetAxis("Vertical");
 
-    private void Move()
-    {
-        float moveX = Input.GetAxis("Horizontal");
-        float moveZ = Input.GetAxis("Vertical");
+        // calculate direction relative to camera
+        Vector3 forward = cameraTransform.forward;
+        Vector3 right = cameraTransform.right;
 
-        // Calculate direction relative to the player's current forward
-        Vector3 moveDir = (transform.forward * moveZ) + (transform.right * moveX);
+        // keep movement on the horizontal plane
+        forward.y = 0f;
+        right.y = 0f;
+        forward.Normalize();
+        right.Normalize();
 
-        Vector3 velocity = moveDir * moveSpeed;
-        velocity.y = rb.linearVelocity.y;
-        rb.linearVelocity = velocity;
-    }
+        Vector3 moveDirection = (forward* moveVertical + right * moveHorizontal).normalized;
 
-    private void HandleRotation()
-    {
-        float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
-        float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
-        transform.Rotate(Vector3.up * mouseX);
-
-        xRotation -= mouseY;
-        xRotation = Mathf.Clamp(xRotation, -70f, 70f); 
-        cameraPivot.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
-    }
-
-    private void Jump()
-    {
-        rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-    }
-
-    private bool IsGrounded()
-    {
-        return Physics.SphereCast(transform.position, 0.4f, Vector3.down, out _, 0.7f);
+        if (moveDirection.magnitude > 0.1f)
+        {
+            Vector3 rotationAxis = Vector3.Cross(Vector3.up, moveDirection);
+            rb.AddTorque(rotationAxis * rollForce, ForceMode.Acceleration);
+        }
     }
 }
