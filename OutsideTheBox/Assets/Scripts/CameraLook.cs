@@ -13,7 +13,7 @@ public class CameraLook : MonoBehaviour
 
     private void Update()
     {
-        mouseX -= Input.GetAxis("Mouse X") * sensitivity;
+        mouseX += Input.GetAxis("Mouse X") * sensitivity;
         mouseY += Input.GetAxis("Mouse Y") * sensitivity;
         mouseY = Mathf.Clamp(mouseY, -35f, 60f); // prevent camera flipping
 
