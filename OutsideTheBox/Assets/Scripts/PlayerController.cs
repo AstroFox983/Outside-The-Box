@@ -3,6 +3,8 @@ using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] float rollForce = 10f;
+    [SerializeField] float maxAngularVelocity = 15f;
+    [SerializeField] float frictonDamping = 0.95f;
     [SerializeField] Transform cameraTransform;
     private Rigidbody rb;
 
@@ -44,6 +46,17 @@ public class PlayerController : MonoBehaviour
         {
             Vector3 rotationAxis = Vector3.Cross(Vector3.up, moveDirection);
             rb.AddTorque(rotationAxis * rollForce, ForceMode.Acceleration);
+        }
+        else
+        {
+            // apply brakes when no input
+            rb.angularVelocity *= frictonDamping;
+        }
+
+        // hard limit to prevent excessive spinning
+        if (rb.angularVelocity.magnitude > maxAngularVelocity)
+        {
+            rb.angularVelocity = rb.angularVelocity.normalized * maxAngularVelocity;
         }
     }
 }
