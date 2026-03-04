@@ -1,62 +1,85 @@
+using UnityEditor.ShaderGraph;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    [SerializeField] float rollForce = 10f;
-    [SerializeField] float maxAngularVelocity = 15f;
-    [SerializeField] float frictonDamping = 0.95f;
+    [Header("Movement Settings")]
+    [SerializeField] float rollForce = 15f;
+    [SerializeField] float maxAngularVelocity = 20f;
     [SerializeField] Transform cameraTransform;
-    private Rigidbody rb;
+    [SerializeField] float airControl = 0.5f; // How much control you have in the air (0 to 1)
 
-    private void Start()
+    [Header("Jump Settings")]
+    [SerializeField] float jumpForce = 7f;
+    [SerializeField] LayerMask groundLayer;
+    [SerializeField] float groundCheckDistance = 0.6f; // Slightly more than half the cube size
+
+    private Rigidbody rb;
+    private bool isGrounded;
+
+    void Start()
     {
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
         rb = GetComponent<Rigidbody>();
-        rb.maxAngularVelocity = 20f;
+        rb.maxAngularVelocity = maxAngularVelocity;
     }
 
-    private void Update()
+    void Update()
     {
-        if(Input.GetKeyDown(KeyCode.Escape))
+        // Jump input goes in Update for better responsiveness
+        if (Input.GetButtonDown("Jump") && CheckGrounded())
         {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            Jump();
         }
     }
 
-    private void FixedUpdate()
+    void FixedUpdate()
+    {
+        ApplyMovement();
+    }
+
+    void ApplyMovement()
     {
         float moveHorizontal = Input.GetAxis("Horizontal");
         float moveVertical = Input.GetAxis("Vertical");
 
-        // calculate direction relative to camera
         Vector3 forward = cameraTransform.forward;
         Vector3 right = cameraTransform.right;
+        forward.y = 0;
+        right.y = 0;
 
-        // keep movement on the horizontal plane
-        forward.y = 0f;
-        right.y = 0f;
-        forward.Normalize();
-        right.Normalize();
-
-        Vector3 moveDirection = (forward* moveVertical + right * moveHorizontal).normalized;
+        Vector3 moveDirection = (forward.normalized * moveVertical + right.normalized * moveHorizontal).normalized;
 
         if (moveDirection.magnitude > 0.1f)
         {
+            // 1. ROTATION (Visual Roll)
             Vector3 rotationAxis = Vector3.Cross(Vector3.up, moveDirection);
             rb.AddTorque(rotationAxis * rollForce, ForceMode.Acceleration);
-        }
-        else
-        {
-            // apply brakes when no input
-            rb.angularVelocity *= frictonDamping;
-        }
 
-        // hard limit to prevent excessive spinning
-        if (rb.angularVelocity.magnitude > maxAngularVelocity)
-        {
-            rb.angularVelocity = rb.angularVelocity.normalized * maxAngularVelocity;
+            // 2. DIRECTIONAL FORCE (Actual Momentum)
+            float currentForce = isGrounded ? rollForce : rollForce * airControl;
+            rb.AddForce(moveDirection * currentForce, ForceMode.Acceleration);
         }
+    }
+
+    void Jump()
+    {
+        // Ensure we keep our current horizontal velocity but "pop" upward
+        Vector3 currentVelocity = rb.linearVelocity;
+        currentVelocity.y = jumpForce;
+        rb.linearVelocity = currentVelocity;
+
+        // Add a slight forward "nudge" if the player is holding a direction
+        float moveVertical = Input.GetAxis("Vertical");
+        float moveHorizontal = Input.GetAxis("Horizontal");
+        Vector3 forwardDir = (cameraTransform.forward * moveVertical + cameraTransform.right * moveHorizontal);
+        forwardDir.y = 0;
+
+        rb.AddForce(forwardDir.normalized * (jumpForce * 0.2f), ForceMode.VelocityChange);
+    }
+
+    bool CheckGrounded()
+    {
+        // SphereCast checks a circular area under the cube, making it more reliable
+        return Physics.SphereCast(transform.position, 0.4f, Vector3.down, out _, 0.2f, groundLayer);
     }
 }
