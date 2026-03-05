@@ -19,6 +19,9 @@ public class PlayerController : MonoBehaviour
 
     void Start()
     {
+        // hide mouse cursor
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
         rb = GetComponent<Rigidbody>();
         rb.maxAngularVelocity = maxAngularVelocity;
     }
@@ -29,6 +32,11 @@ public class PlayerController : MonoBehaviour
         if (Input.GetButtonDown("Jump") && CheckGrounded())
         {
             Jump();
+        }
+        if(Input.GetKeyDown(KeyCode.Escape))
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
     }
 
